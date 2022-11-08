@@ -579,7 +579,6 @@ func resultCodeIsOk(logger log.Logger, SMARTCtlResult int64) bool {
 // Check json
 func jsonIsOk(logger log.Logger, json gjson.Result) bool {
 	messages := json.Get("smartctl.messages")
-	// logger.Debug(messages.String())
 	if messages.Exists() {
 		for _, message := range messages.Array() {
 			if message.Get("severity").String() == "error" {
