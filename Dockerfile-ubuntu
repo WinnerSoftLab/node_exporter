@@ -1,0 +1,12 @@
+ARG BASE_IMAGE="focal-20220531"
+
+FROM ubuntu:$BASE_IMAGE
+
+RUN apt-get update && apt-get install -y smartmontools && \
+apt-get clean
+
+ADD node_exporter /bin/node_exporter
+
+EXPOSE      9100
+USER        root
+ENTRYPOINT  [ "/bin/node_exporter" ]
