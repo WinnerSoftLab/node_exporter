@@ -46,6 +46,11 @@ type SMARTctlInfo struct {
 	Ready bool
 }
 
+type diskDevice struct {
+	name       string
+	deviceType string
+}
+
 type smartCollector struct {
 	smartctlVersion, smartctlDevice               *prometheus.Desc
 	capacityBlocks, capacityBytes                 *prometheus.Desc
@@ -61,7 +66,7 @@ type smartCollector struct {
 	selfTestLogCount, selfTestLogErrorCount       *prometheus.Desc
 	ercSeconds                                    *prometheus.Desc
 	logger                                        log.Logger
-	devices                                       []string
+	devices                                       []diskDevice
 }
 
 // JSONCache caching json
@@ -283,34 +288,17 @@ func NewDiskSmartCollector(logger log.Logger) (Collector, error) {
 	json := readSMARTctlDevices(logger)
 	scanDevices := json.Get("devices").Array()
 	scanDevicesSet := make(map[string]bool)
-	var scanDeviceNames []string
+	var scanDeviceNames []diskDevice
 	for _, d := range scanDevices {
 		deviceName := d.Get("name").String()
 		deviceType := d.Get("type").String()
 		fullDeviceName := fmt.Sprintf("%s -d %s", deviceName, deviceType)
 		level.Info(logger).Log("msg", "Found device", "name", fullDeviceName)
 		scanDevicesSet[deviceName] = true
-		scanDeviceNames = append(scanDeviceNames, fullDeviceName)
+		scanDeviceNames = append(scanDeviceNames, diskDevice{name: deviceName, deviceType: deviceType})
 	}
 
-	// Read the configuration and verify that it is available
-	devices := *smartctlDevices
-	var readDeviceNames []string
-	for _, device := range devices {
-		if _, ok := scanDevicesSet[device]; ok {
-			readDeviceNames = append(readDeviceNames, device)
-		} else {
-			level.Warn(logger).Log("msg", "Device unavailable", "name", device)
-		}
-	}
-	if len(readDeviceNames) > 0 {
-		devices = readDeviceNames
-	} else {
-		level.Info(logger).Log("msg", "No devices specified, trying to load them automatically")
-		devices = scanDeviceNames
-	}
-
-	if len(devices) == 0 {
+	if len(scanDeviceNames) == 0 {
 		level.Error(logger).Log("msg", "No devices found")
 	}
 
@@ -336,7 +324,7 @@ func NewDiskSmartCollector(logger log.Logger) (Collector, error) {
 		selfTestLogCount:        metricDeviceSelfTestLogCount,
 		selfTestLogErrorCount:   metricDeviceSelfTestLogErrorCount,
 		ercSeconds:              metricDeviceERCSeconds,
-		devices:                 devices,
+		devices:                 scanDeviceNames,
 		logger:                  logger,
 	}, nil
 }
@@ -344,7 +332,7 @@ func NewDiskSmartCollector(logger log.Logger) (Collector, error) {
 func (c *smartCollector) Update(ch chan<- prometheus.Metric) error {
 	info := NewSMARTctlInfo(ch)
 	for _, device := range c.devices {
-		json := readData(c.logger, device)
+		json := readData(c.logger, device.name, device.deviceType)
 		if json.Exists() {
 			info.SetJSON(json)
 			smart := NewSMARTctl(c.logger, json, ch)
@@ -450,11 +438,11 @@ func GetFloatIfExists(json gjson.Result, key string, def float64) float64 {
 }
 
 // Select json source and parse
-func readData(logger log.Logger, device string) gjson.Result {
+func readData(logger log.Logger, device string, deviceType string) gjson.Result {
 
 	cacheValue, cacheOk := jsonCache.Load(device)
 	if !cacheOk || time.Now().After(cacheValue.(JSONCache).LastCollect.Add(*smartctlInterval)) {
-		json, ok := readSMARTctl(logger, device)
+		json, ok := readSMARTctl(logger, device, deviceType)
 		if ok {
 			jsonCache.Store(device, JSONCache{JSON: json, LastCollect: time.Now()})
 			j, found := jsonCache.Load(device)
@@ -469,8 +457,8 @@ func readData(logger log.Logger, device string) gjson.Result {
 }
 
 // Get json from smartctl and parse it
-func readSMARTctl(logger log.Logger, device string) (gjson.Result, bool) {
-	out, err := exec.Command(*smartctlPath, "--json", "--info", "--health", "--attributes", "--tolerance=verypermissive", "--nocheck=standby", "--format=brief", device).Output()
+func readSMARTctl(logger log.Logger, device string, deviceType string) (gjson.Result, bool) {
+	out, err := exec.Command(*smartctlPath, "--json", "--info", "--health", "--attributes", "--tolerance=verypermissive", "--nocheck=standby", "--format=brief", device, "-d", deviceType).Output()
 	if err != nil {
 		level.Warn(logger).Log("msg", "S.M.A.R.T. output reading", "err", err)
 	}
