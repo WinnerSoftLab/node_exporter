@@ -466,7 +466,7 @@ func GetFloatIfExists(json gjson.Result, key string, def float64) float64 {
 // Select json source and parse
 func readData(logger log.Logger, device string, deviceType string) gjson.Result {
 
-	cacheValue, cacheOk := jsonCache.Load(device)
+	cacheValue, cacheOk := jsonCache.Load(device + deviceType)
 	if !cacheOk || time.Now().After(cacheValue.(JSONCache).LastCollect.Add(*smartctlInterval)) {
 		json, ok := readSMARTctl(logger, device, deviceType)
 		if ok {
