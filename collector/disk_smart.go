@@ -19,7 +19,7 @@ var (
 	).Default("/usr/sbin/smartctl").String()
 	smartctlInterval = kingpin.Flag("collector.smartctl.interval",
 		"The interval between smarctl polls",
-	).Default("60s").Duration()
+	).Default("300s").Duration()
 	smartctlDevices = kingpin.Flag("collector.smartctl.device",
 		"The device to monitor (repeatable)",
 	).Strings()
