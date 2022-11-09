@@ -104,40 +104,7 @@ var (
 		},
 		nil,
 	)
-	metricDeviceCapacityBlocks = prometheus.NewDesc(
-		"smartctl_device_capacity_blocks",
-		"Device capacity in blocks",
-		[]string{
-			"device",
-		},
-		nil,
-	)
-	metricDeviceCapacityBytes = prometheus.NewDesc(
-		"smartctl_device_capacity_bytes",
-		"Device capacity in bytes",
-		[]string{
-			"device",
-		},
-		nil,
-	)
-	metricDeviceBlockSize = prometheus.NewDesc(
-		"smartctl_device_block_size",
-		"Device block size",
-		[]string{
-			"device",
-			"blocks_type",
-		},
-		nil,
-	)
-	metricDeviceInterfaceSpeed = prometheus.NewDesc(
-		"smartctl_device_interface_speed",
-		"Device interface speed, bits per second",
-		[]string{
-			"device",
-			"speed_type",
-		},
-		nil,
-	)
+
 	metricDeviceAttribute = prometheus.NewDesc(
 		"smartctl_device_attribute",
 		"Device attributes",
@@ -151,36 +118,12 @@ var (
 		},
 		nil,
 	)
-	metricDevicePowerOnSeconds = prometheus.NewDesc(
-		"smartctl_device_power_on_seconds",
-		"Device power on seconds",
-		[]string{
-			"device",
-		},
-		nil,
-	)
-	metricDeviceRotationRate = prometheus.NewDesc(
-		"smartctl_device_rotation_rate",
-		"Device rotation rate",
-		[]string{
-			"device",
-		},
-		nil,
-	)
 	metricDeviceTemperature = prometheus.NewDesc(
 		"smartctl_device_temperature",
 		"Device temperature celsius",
 		[]string{
 			"device",
 			"temperature_type",
-		},
-		nil,
-	)
-	metricDevicePowerCycleCount = prometheus.NewDesc(
-		"smartctl_device_power_cycle_count",
-		"Device power cycle count",
-		[]string{
-			"device",
 		},
 		nil,
 	)
@@ -372,15 +315,8 @@ func NewDiskSmartCollector(logger log.Logger) (Collector, error) {
 	return &smartCollector{
 		smartctlVersion:         metricSmartctlVersion,
 		smartctlDevice:          metricDeviceModel,
-		capacityBlocks:          metricDeviceCapacityBlocks,
-		capacityBytes:           metricDeviceCapacityBytes,
-		blockSize:               metricDeviceBlockSize,
-		interfaceSpeed:          metricDeviceInterfaceSpeed,
 		attribute:               metricDeviceAttribute,
-		powerOnSeconds:          metricDevicePowerOnSeconds,
-		rotationRate:            metricDeviceRotationRate,
 		temperature:             metricDeviceTemperature,
-		powerCycleCount:         metricDevicePowerCycleCount,
 		percentageUsed:          metricDevicePercentageUsed,
 		availableSpare:          metricDeviceAvailableSpare,
 		availableSpareThreshold: metricDeviceAvailableSpareThreshold,
@@ -594,13 +530,8 @@ func jsonIsOk(logger log.Logger, json gjson.Result) bool {
 func (smart *SMARTctl) Collect() {
 	smart.mineExitStatus()
 	smart.mineDevice()
-	smart.mineCapacity()
-	smart.mineInterfaceSpeed()
 	smart.mineDeviceAttribute()
-	smart.minePowerOnSeconds()
-	smart.mineRotationRate()
 	smart.mineTemperatures()
-	smart.minePowerCycleCount()
 	smart.mineDeviceSCTStatus()
 	smart.mineDeviceStatistics()
 	smart.mineDeviceStatus()
@@ -647,45 +578,6 @@ func (smart *SMARTctl) mineDevice() {
 	)
 }
 
-func (smart *SMARTctl) mineCapacity() {
-	capacity := smart.json.Get("user_capacity")
-	smart.ch <- prometheus.MustNewConstMetric(
-		metricDeviceCapacityBlocks,
-		prometheus.GaugeValue,
-		capacity.Get("blocks").Float(),
-		smart.device.device,
-	)
-	smart.ch <- prometheus.MustNewConstMetric(
-		metricDeviceCapacityBytes,
-		prometheus.GaugeValue,
-		capacity.Get("bytes").Float(),
-		smart.device.device,
-	)
-	for _, blockType := range []string{"logical", "physical"} {
-		smart.ch <- prometheus.MustNewConstMetric(
-			metricDeviceBlockSize,
-			prometheus.GaugeValue,
-			smart.json.Get(fmt.Sprintf("%s_block_size", blockType)).Float(),
-			smart.device.device,
-			blockType,
-		)
-	}
-}
-
-func (smart *SMARTctl) mineInterfaceSpeed() {
-	iSpeed := smart.json.Get("interface_speed")
-	for _, speedType := range []string{"max", "current"} {
-		tSpeed := iSpeed.Get(speedType)
-		smart.ch <- prometheus.MustNewConstMetric(
-			metricDeviceInterfaceSpeed,
-			prometheus.GaugeValue,
-			tSpeed.Get("units_per_second").Float()*tSpeed.Get("bits_per_unit").Float(),
-			smart.device.device,
-			speedType,
-		)
-	}
-}
-
 func (smart *SMARTctl) mineDeviceAttribute() {
 	for _, attribute := range smart.json.Get("ata_smart_attributes.table").Array() {
 		name := strings.TrimSpace(attribute.Get("name").String())
@@ -720,28 +612,6 @@ func (smart *SMARTctl) mineDeviceAttribute() {
 	}
 }
 
-func (smart *SMARTctl) minePowerOnSeconds() {
-	pot := smart.json.Get("power_on_time")
-	smart.ch <- prometheus.MustNewConstMetric(
-		metricDevicePowerOnSeconds,
-		prometheus.CounterValue,
-		GetFloatIfExists(pot, "hours", 0)*60*60+GetFloatIfExists(pot, "minutes", 0)*60,
-		smart.device.device,
-	)
-}
-
-func (smart *SMARTctl) mineRotationRate() {
-	rRate := GetFloatIfExists(smart.json, "rotation_rate", 0)
-	if rRate > 0 {
-		smart.ch <- prometheus.MustNewConstMetric(
-			metricDeviceRotationRate,
-			prometheus.GaugeValue,
-			rRate,
-			smart.device.device,
-		)
-	}
-}
-
 func (smart *SMARTctl) mineTemperatures() {
 	temperatures := smart.json.Get("temperature")
 	if temperatures.Exists() {
@@ -756,15 +626,6 @@ func (smart *SMARTctl) mineTemperatures() {
 			return true
 		})
 	}
-}
-
-func (smart *SMARTctl) minePowerCycleCount() {
-	smart.ch <- prometheus.MustNewConstMetric(
-		metricDevicePowerCycleCount,
-		prometheus.CounterValue,
-		smart.json.Get("power_cycle_count").Float(),
-		smart.device.device,
-	)
 }
 
 func (smart *SMARTctl) mineDeviceSCTStatus() {
