@@ -10,7 +10,7 @@ WORKDIR /build
 RUN make build
 
 
-FROM ubuntu:$BASE_IMAGE
+FROM nexus.adsrv.wtf/click/ubuntu:$BASE_IMAGE
 
 RUN apt-get update && apt-get install -y smartmontools && \
 apt-get clean
