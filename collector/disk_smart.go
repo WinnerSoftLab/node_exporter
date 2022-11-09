@@ -314,11 +314,11 @@ func NewDiskSmartCollector(logger log.Logger) (Collector, error) {
 		deviceName := d.Get("name").String()
 		deviceType := d.Get("type").String()
 		fullDeviceName := fmt.Sprintf("%s -d %s", deviceName, deviceType)
-		level.Info(logger).Log("msg", "Found device", "name", fullDeviceName)
 		if d.Get("open_error").Exists() {
 			level.Info(logger).Log("msg", "RAID device, skip", "name", fullDeviceName)
 			continue
 		}
+		level.Info(logger).Log("msg", "Found device", "name", fullDeviceName)
 		scanDevicesSet[deviceName] = true
 		scanDeviceNames = append(scanDeviceNames, diskDevice{name: deviceName, deviceType: deviceType})
 	}
