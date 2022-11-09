@@ -1,11 +1,21 @@
+ARG GolangVersion=1.17.8-202208161419
 ARG BASE_IMAGE="focal-20220531"
+
+# Build image
+FROM nexus.adsrv.wtf/click/golang:${GolangVersion} as build
+
+COPY --chown=jenkins:jenkins ./ /build
+WORKDIR /build
+
+RUN make build
+
 
 FROM ubuntu:$BASE_IMAGE
 
 RUN apt-get update && apt-get install -y smartmontools && \
 apt-get clean
 
-ADD node_exporter /bin/node_exporter
+COPY --from=build /build/node_exporter /bin/node_exporter
 
 EXPOSE      9100
 USER        root
