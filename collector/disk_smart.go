@@ -287,9 +287,10 @@ func NewDiskSmartCollector(logger log.Logger) (Collector, error) {
 	for _, d := range scanDevices {
 		deviceName := d.Get("name").String()
 		deviceType := d.Get("type").String()
-		level.Info(logger).Log("msg", "Found device", "name", fmt.Sprintf("%s -d %s", deviceName, deviceType))
+		fullDeviceName := fmt.Sprintf("%s -d %s", deviceName, deviceType)
+		level.Info(logger).Log("msg", "Found device", "name", fullDeviceName)
 		scanDevicesSet[deviceName] = true
-		scanDeviceNames = append(scanDeviceNames, deviceName)
+		scanDeviceNames = append(scanDeviceNames, fullDeviceName)
 	}
 
 	// Read the configuration and verify that it is available
