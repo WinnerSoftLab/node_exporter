@@ -13,7 +13,8 @@ RUN make build
 FROM nexus.adsrv.wtf/click/ubuntu:$BASE_IMAGE
 
 RUN apt-get update && apt-get install -y smartmontools && \
-apt-get clean
+apt-get clean && \
+/usr/sbin/update-smart-drivedb
 
 COPY --from=build /build/node_exporter /bin/node_exporter
 
