@@ -466,8 +466,8 @@ func readData(logger log.Logger, device string, deviceType string) gjson.Result 
 	if !cacheOk || time.Now().After(cacheValue.(JSONCache).LastCollect.Add(*smartctlInterval)) {
 		json, ok := readSMARTctl(logger, device, deviceType)
 		if ok {
-			jsonCache.Store(device, JSONCache{JSON: json, LastCollect: time.Now()})
-			j, found := jsonCache.Load(device)
+			jsonCache.Store(device+deviceType, JSONCache{JSON: json, LastCollect: time.Now()})
+			j, found := jsonCache.Load(device + deviceType)
 			if !found {
 				level.Warn(logger).Log("msg", "device not found", "device", device)
 			}
