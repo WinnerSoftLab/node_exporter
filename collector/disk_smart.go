@@ -335,6 +335,7 @@ func NewDiskSmartCollector(logger log.Logger) (Collector, error) {
 		selfTestLogErrorCount:   metricDeviceSelfTestLogErrorCount,
 		ercSeconds:              metricDeviceERCSeconds,
 		devices:                 devices,
+		logger:                  logger,
 	}, nil
 }
 
