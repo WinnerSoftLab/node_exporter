@@ -315,6 +315,10 @@ func NewDiskSmartCollector(logger log.Logger) (Collector, error) {
 		deviceType := d.Get("type").String()
 		fullDeviceName := fmt.Sprintf("%s -d %s", deviceName, deviceType)
 		level.Info(logger).Log("msg", "Found device", "name", fullDeviceName)
+		if d.Get("open_error").Exists() {
+			level.Info(logger).Log("msg", "RAID device, skip", "name", fullDeviceName)
+			continue
+		}
 		scanDevicesSet[deviceName] = true
 		scanDeviceNames = append(scanDeviceNames, diskDevice{name: deviceName, deviceType: deviceType})
 	}
@@ -367,7 +371,7 @@ func (c *smartCollector) Update(ch chan<- prometheus.Metric) error {
 
 func readSMARTctlDevices(logger log.Logger) gjson.Result {
 	level.Debug(logger).Log("msg", "Scanning for devices")
-	out, err := exec.Command(*smartctlPath, "--json", "--scan").Output()
+	out, err := exec.Command(*smartctlPath, "--json", "--scan-open").Output()
 	if exiterr, ok := err.(*exec.ExitError); ok {
 		level.Debug(logger).Log("msg", "Exit Status", "exit_code", exiterr.ExitCode())
 		// The smartctl command returns 2 if devices are sleeping, ignore this error.
