@@ -286,7 +286,8 @@ func NewDiskSmartCollector(logger log.Logger) (Collector, error) {
 	var scanDeviceNames []string
 	for _, d := range scanDevices {
 		deviceName := d.Get("name").String()
-		level.Info(logger).Log("msg", "Found device", "name", deviceName)
+		deviceType := d.Get("type").String()
+		level.Info(logger).Log("msg", "Found device", "name", fmt.Sprintf("%s -d %s", deviceName, deviceType))
 		scanDevicesSet[deviceName] = true
 		scanDeviceNames = append(scanDeviceNames, deviceName)
 	}
