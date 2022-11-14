@@ -46,10 +46,9 @@ var (
 const systemdV2subsystem = "systemd_v2"
 
 type systemdV2Collector struct {
-	unitStarts         *prometheus.Desc
-	unitSuccess        *prometheus.Desc
-	unitFails          *prometheus.Desc
-	exporterLastUpdate *prometheus.Desc
+	unitStarts  *prometheus.Desc
+	unitSuccess *prometheus.Desc
+	unitFails   *prometheus.Desc
 	// cli
 	unitIncludePattern *regexp.Regexp
 	unitExcludePattern *regexp.Regexp
@@ -100,10 +99,6 @@ func NewSystemdV2Collector(logger log.Logger) (Collector, error) {
 	collector.unitFails = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, systemdV2subsystem, "unit_failed"),
 		"Count of unit starts", []string{"name"}, nil,
-	)
-	collector.exporterLastUpdate = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, systemdV2subsystem, "exporter_fail"),
-		"Indicates that exporter fail", []string{}, nil,
 	)
 
 	level.Info(logger).Log("msg", "Parsed flag --collector.systemd-v2.unit-include", "flag", *systemdV2unitInclude)
@@ -174,11 +169,6 @@ func (c *systemdV2Collector) Update(ch chan<- prometheus.Metric) error {
 			unitName,
 		)
 	}
-	ch <- prometheus.MustNewConstMetric(
-		c.exporterLastUpdate,
-		prometheus.CounterValue,
-		float64(c.unitStatus.lastUpdate.Unix()),
-	)
 
 	return nil
 }
