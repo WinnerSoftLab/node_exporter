@@ -60,10 +60,10 @@ type systemdV2Collector struct {
 }
 
 type systemdV2Status struct {
-	mu          sync.RWMutex
-	units       map[string]*systemdV2Unit
-	lastUpdate  time.Time
-	collectFail bool
+	mu           sync.RWMutex
+	units        map[string]*systemdV2Unit
+	lastUpdate   time.Time
+	CollectorErr error
 }
 
 type systemdV2Unit struct {
@@ -145,8 +145,8 @@ func (c *systemdV2Collector) Update(ch chan<- prometheus.Metric) error {
 	c.unitStatus.mu.RLock()
 	defer c.unitStatus.mu.RUnlock()
 
-	if c.unitStatus.collectFail {
-		return fmt.Errorf("systemd-v2 collector fail")
+	if c.unitStatus.CollectorErr != nil {
+		return fmt.Errorf("systemd-v2 collector fail: %w", c.unitStatus.CollectorErr)
 	}
 
 	for unitName, unitStats := range c.unitStatus.units {
@@ -207,7 +207,7 @@ func (c *systemdV2Collector) listener(dataChan <-chan *dbus.PropertiesUpdate, er
 			c.unitStatus.mu.Unlock()
 		case err := <-errChan:
 			level.Error(c.logger).Log("msg", "collector failed", "name", systemdV2subsystem, "err", err)
-			c.unitStatus.collectFail = true
+			c.unitStatus.CollectorErr = err
 		}
 	}
 }
@@ -217,11 +217,4 @@ func (c *systemdV2Collector) unitMatchFilters(name string) bool {
 		return true
 	}
 	return false
-}
-
-func boolToFloat64(b bool) float64 {
-	if b {
-		return 1
-	}
-	return 0
 }
