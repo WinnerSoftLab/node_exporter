@@ -115,7 +115,7 @@ func NewSystemdV2Collector(logger log.Logger) (Collector, error) {
 		return nil, err
 	}
 
-	dataCh := make(chan *dbus.PropertiesUpdate, 100)
+	dataCh := make(chan *dbus.PropertiesUpdate, 10000)
 	errCh := make(chan error)
 	collector.conn.SetPropertiesSubscriber(dataCh, errCh)
 
